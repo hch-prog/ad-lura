@@ -32,14 +32,23 @@ export async function POST(request: NextRequest) {
             prompt,
         });
 
-        if (!rsp.data || rsp.data.length === 0) {
+        if (!rsp.data || rsp.data.length === 0 || !rsp.data[0].b64_json) {
             return NextResponse.json(
-                { error: "Failed to generate image data" },
+                { error: "Failed to generate image data or missing base64 data" },
                 { status: 500 }
             );
         }
 
         const image_base64 = rsp.data[0].b64_json;
+
+        // Check if image_base64 is a valid string before attempting to convert it to a buffer
+        if (!image_base64 || typeof image_base64 !== 'string') {
+            return NextResponse.json(
+                { error: "Image base64 data is invalid or missing" },
+                { status: 500 }
+            );
+        }
+
         const image_bytes = Buffer.from(image_base64, "base64");
         const filename = `edited-image-${Date.now()}.png`;
 
