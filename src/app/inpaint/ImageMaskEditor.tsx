@@ -50,15 +50,20 @@ export default function ImageMaskEditor({
                 setCtx(context);
                 setSourceCtx(sourceContext);
 
-                // Clear mask canvas
+                // Clear mask canvas with black (unmasked area)
                 context.fillStyle = 'black';
                 context.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
 
-                // If there's an initial mask, draw it
+                // If there's an initial mask, load and draw it
                 if (initialMask) {
                     const maskImg = new Image();
                     maskImg.onload = () => {
-                        if (canvasRef.current) {
+                        if (canvasRef.current && context) {
+                            // Clear canvas first
+                            context.fillStyle = 'black';
+                            context.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+                            
+                            // Draw the mask
                             context.drawImage(maskImg, 0, 0, canvasRef.current.width, canvasRef.current.height);
                         }
                     };
@@ -66,7 +71,7 @@ export default function ImageMaskEditor({
                 }
             }
         }
-    }, [initialMask]);
+    }, [initialMask, canvasSize]); // Add canvasSize to dependencies
 
     // Load source image when it changes
     useEffect(() => {
@@ -114,6 +119,20 @@ export default function ImageMaskEditor({
         };
     }, [sourceImage, sourceCtx]);
 
+    useEffect(() => {
+        return () => {
+            // Cleanup
+            if (sourceCanvasRef.current) {
+                const context = sourceCanvasRef.current.getContext('2d');
+                context?.clearRect(0, 0, sourceCanvasRef.current.width, sourceCanvasRef.current.height);
+            }
+            if (canvasRef.current) {
+                const context = canvasRef.current.getContext('2d');
+                context?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+            }
+        };
+    }, []);
+
     const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
         setIsDrawing(true);
         setPrevPos({ x: 0, y: 0 });
@@ -128,34 +147,38 @@ export default function ImageMaskEditor({
     const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
         if (!isDrawing || !ctx || !canvasRef.current) return;
 
-        const rect = canvasRef.current.getBoundingClientRect();
-        const scaleX = canvasRef.current.width / rect.width;
-        const scaleY = canvasRef.current.height / rect.height;
-        
-        const x = (e.clientX - rect.left) * scaleX;
-        const y = (e.clientY - rect.top) * scaleY;
-        const currentPos = { x, y };
+        try {
+            const rect = canvasRef.current.getBoundingClientRect();
+            const scaleX = canvasRef.current.width / rect.width;
+            const scaleY = canvasRef.current.height / rect.height;
+            
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            const currentPos = { x, y };
 
-        ctx.fillStyle = 'white';
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = currentBrushSize;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = currentBrushSize;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
 
-        // Draw the circle at current position
-        ctx.beginPath();
-        ctx.arc(x, y, currentBrushSize / 2, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Connect to previous position if exists
-        if (prevPos.x !== 0 && prevPos.y !== 0) {
+            // Draw the circle at current position
             ctx.beginPath();
-            ctx.moveTo(prevPos.x, prevPos.y);
-            ctx.lineTo(currentPos.x, currentPos.y);
-            ctx.stroke();
-        }
+            ctx.arc(x, y, currentBrushSize / 2, 0, Math.PI * 2);
+            ctx.fill();
 
-        setPrevPos(currentPos);
+            // Connect to previous position if exists
+            if (prevPos.x !== 0 && prevPos.y !== 0) {
+                ctx.beginPath();
+                ctx.moveTo(prevPos.x, prevPos.y);
+                ctx.lineTo(currentPos.x, currentPos.y);
+                ctx.stroke();
+            }
+
+            setPrevPos(currentPos);
+        } catch (error) {
+            console.error('Error drawing mask:', error);
+        }
     };
 
     const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {

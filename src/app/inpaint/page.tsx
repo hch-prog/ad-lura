@@ -68,11 +68,32 @@ export default function ImageInpainting() {
     };
 
     const handleMaskGenerated = (maskDataURL: string) => {
-        // Convert data URL to File object
-        const file = dataURLtoFile(maskDataURL, "mask.png");
-        setMaskFile(file);
-        setMaskImage(maskDataURL);
-        setShowMaskEditor(false);
+        try {
+            // Convert data URL to File object
+            const file = dataURLtoFile(maskDataURL, "mask.png");
+            
+            // Update state
+            setMaskFile(file);
+            setMaskImage(maskDataURL);
+            setShowMaskEditor(false);
+            
+            // Clear any existing errors
+            setError(null);
+        } catch (error) {
+            console.error('Error generating mask:', error);
+            setError('Failed to generate mask');
+        }
+    };
+
+    const handleEditMask = () => {
+        if (!imageFile) {
+            setError("Please upload an image first");
+            return;
+        }
+        
+        // Show the mask editor
+        setShowMaskEditor(true);
+        setMaskMode("draw");
     };
 
     const handleSubmit = async (e?: React.FormEvent) => {
@@ -241,7 +262,7 @@ export default function ImageInpainting() {
                                     </div>
                                     <button
                                         type="button"
-                                        onClick={() => setShowMaskEditor(true)}
+                                        onClick={handleEditMask}
                                         className="bg-blue-500 hover:bg-blue-600 mt-2 px-4 py-2 rounded-lg text-white"
                                     >
                                         Edit Mask
