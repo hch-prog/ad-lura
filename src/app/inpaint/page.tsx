@@ -12,6 +12,9 @@ export default function ImageInpainting() {
     const [showMaskEditor, setShowMaskEditor] = useState<boolean>(false);
     const [maskImage, setMaskImage] = useState<string | null>(null);
     const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+    const [generatedImagePath, setGeneratedImagePath] = useState<string | null>(null); // New for generated image path
+    const [responseLogPath, setResponseLogPath] = useState<string | null>(null); // New for log file path
+
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [maskMode, setMaskMode] = useState<"draw" | "upload">("draw");
@@ -71,12 +74,12 @@ export default function ImageInpainting() {
         try {
             // Convert data URL to File object
             const file = dataURLtoFile(maskDataURL, "mask.png");
-            
+
             // Update state
             setMaskFile(file);
             setMaskImage(maskDataURL);
             setShowMaskEditor(false);
-            
+
             // Clear any existing errors
             setError(null);
         } catch (error) {
@@ -90,7 +93,7 @@ export default function ImageInpainting() {
             setError("Please upload an image first");
             return;
         }
-        
+
         // Show the mask editor
         setShowMaskEditor(true);
         setMaskMode("draw");
@@ -124,7 +127,9 @@ export default function ImageInpainting() {
                 throw new Error(data.error || "Failed to generate image");
             }
 
-            setGeneratedImage(data.imagePath);
+            setGeneratedImage(data.imagePath); // Image path from backend
+            setGeneratedImagePath(data.imagePath); // New state to store generated image path
+            setResponseLogPath(data.responseFile); // New state to store the log file path
         } catch (err) {
             if (err instanceof Error) {
                 setError(err.message);
@@ -136,6 +141,7 @@ export default function ImageInpainting() {
             setIsLoading(false);
         }
     };
+
 
     return (
         <main className="bg-gradient-to-b from-blue-50 to-purple-50 p-4 md:p-8 lg:p-16 min-h-screen">
@@ -331,6 +337,16 @@ export default function ImageInpainting() {
                         </div>
                     </div>
                 )}
+
+                {responseLogPath && !isLoading && (
+                    <div className="bg-white shadow-lg mt-6 p-6 rounded-xl">
+                        <h2 className="mb-4 font-semibold text-gray-800 text-xl">Response Log</h2>
+                        <div className="p-4 border border-gray-200 rounded-lg">
+                            <p className="text-gray-700">Log file saved at: <a href={responseLogPath} target="_blank" className="text-blue-600 hover:underline">Download Log</a></p>
+                        </div>
+                    </div>
+                )}
+
             </div>
         </main>
     );
