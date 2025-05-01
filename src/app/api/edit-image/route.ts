@@ -1,72 +1,108 @@
-import fs from "fs";
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI, { toFile } from "openai";
+import fs from "fs"; // Import the fs module
+import { OpenAI, toFile } from "openai"; // Import OpenAI and toFile helper
+import path from "path";
 
-// Initialize the OpenAI client
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Initialize OpenAI instance
+const client = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY, // Your OpenAI API key from .env
+});
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
     try {
-        const formData = await request.formData();
-        const prompt = formData.get("prompt")?.toString();
-        const imageFile = formData.get("image");
-        const maskFile = formData.get("mask");
+        const formData = await req.formData();
+        const prompt = formData.get("prompt") as string;
+        const imageFiles = formData.getAll("images") as File[];
 
-        // Ensure the prompt, image, and mask are provided
-        if (!prompt || !imageFile || !maskFile) {
-            return NextResponse.json(
-                { error: "Prompt, image, and mask are required" },
-                { status: 400 }
-            );
+        // Retrieve the additional parameters (quality, size, and style)
+        const quality = formData.get("quality") as string || "auto";  // Default to "auto"
+        const size = formData.get("size") as string || "auto";        // Default to "auto"
+        //const style = formData.get("style") as string || "vivid";      // Default to "vivid"
+
+        // Validate prompt and images
+        if (!prompt || imageFiles.length === 0) {
+            return NextResponse.json({ error: "Prompt and at least one image are required" }, { status: 400 });
         }
 
-        // Convert the image and mask into files for OpenAI
-        const imageFileConverted = await toFile(imageFile as Blob, null, { type: "image/png" });
-        const maskFileConverted = await toFile(maskFile as Blob, null, { type: "image/png" });
+        if (imageFiles.length > 4) {
+            return NextResponse.json({ error: "You can upload up to 4 images only" }, { status: 400 });
+        }
 
-        // Use OpenAI's image edit API (inpainting) to create a new image
-        const rsp = await openai.images.edit({
-            model: "gpt-image-1",
-            image: imageFileConverted,
-            mask: maskFileConverted,
-            prompt,
+        // Map quality and size to the allowed values expected by OpenAI API
+        const validQualityValues: ("auto" | "standard" | "low" | "medium" | "high" | null)[] = ["auto", "standard", "low", "medium", "high", null];
+        const validSizeValues: ("256x256" | "512x512" | "1024x1024" | null)[] = ["256x256", "512x512", "1024x1024", null];
+
+        const mappedQuality: "auto" | "standard" | "low" | "medium" | "high" | null = validQualityValues.includes(quality as any) ? (quality as any) : "auto";
+        const mappedSize: "256x256" | "512x512" | "1024x1024" | null = validSizeValues.includes(size as any) ? (size as any) : "auto";
+
+        // Convert images into the correct format for OpenAI API using toFile
+        const images = await Promise.all(
+            imageFiles.map(async (file) => {
+                const buffer = await file.arrayBuffer();
+                return toFile(Buffer.from(buffer), file.name, { type: file.type });
+            })
+        );
+
+        // Prepare the OpenAI image edit request
+        const response = await client.images.edit({
+            model: "gpt-image-1",   // Use the GPT image generation model
+            image: images,          // The images to edit (uploaded images)
+            prompt: prompt,         // The prompt for the image edit
+            n: 1,                   // Generate only one image
+            response_format: "b64_json", // Response will be base64 encoded image
+            quality: mappedQuality, // Send the mapped quality value to the API
+            size: mappedSize,       // Send the mapped size value to the API
+            //style: style,           // Send the selected style to the API (for DALL-E 3)
         });
 
-        if (!rsp.data || rsp.data.length === 0 || !rsp.data[0].b64_json) {
-            return NextResponse.json(
-                { error: "Failed to generate image data or missing base64 data" },
-                { status: 500 }
-            );
+        // Log the entire response for debugging
+        console.log("OpenAI Response:", response);
+        // Save OpenAI response to a text file for debugging
+        const timestamp = Date.now();
+        const responseFilePath = path.join(process.cwd(), 'public', 'logs', `openai_response_${timestamp}.txt`);
+
+        // Create 'logs' directory if it doesn't exist
+        const logsDir = path.dirname(responseFilePath);
+        if (!fs.existsSync(logsDir)) {
+            fs.mkdirSync(logsDir, { recursive: true });
         }
 
-        const image_base64 = rsp.data[0].b64_json;
+        // Save response as JSON to the file
+        fs.writeFileSync(responseFilePath, JSON.stringify(response, null, 2));
 
-        // Check if image_base64 is a valid string before attempting to convert it to a buffer
-        if (!image_base64 || typeof image_base64 !== 'string') {
-            return NextResponse.json(
-                { error: "Image base64 data is invalid or missing" },
-                { status: 500 }
-            );
+        console.log("OpenAI response saved to file:", responseFilePath);
+
+        // Handle OpenAI API response
+        if (!response || !response.data || !response.data[0]?.b64_json) {
+            return NextResponse.json({ error: "No image generated" }, { status: 500 });
         }
 
-        const image_bytes = Buffer.from(image_base64, "base64");
-        const filename = `edited-image-${Date.now()}.png`;
+        // Get the base64 image from response
+        const imageBase64 = response.data[0].b64_json;
 
-        // Save the generated image
-        const imageDir = "./public/images";
-        if (!fs.existsSync(imageDir)) {
-            fs.mkdirSync(imageDir, { recursive: true });
+        // Convert base64 to buffer and save the file to the server
+        const imageBuffer = Buffer.from(imageBase64, "base64");
+        const outputPath = "public/uploads/generated-image.png"; // Path to save the generated image
+
+        // Make sure the uploads directory exists
+        const uploadsDir = "public/uploads";
+        if (!fs.existsSync(uploadsDir)) {
+            fs.mkdirSync(uploadsDir, { recursive: true });
         }
 
-        const filePath = `${imageDir}/${filename}`;
-        fs.writeFileSync(filePath, image_bytes);
+        // Save the image to the output path
+        fs.writeFileSync(outputPath, imageBuffer);
 
+        // Return the image path for frontend to use
         return NextResponse.json({
+            imagePath: `/uploads/generated-image.png`,
             success: true,
-            imagePath: `/images/${filename}`,
+            response: response,
+            responseFile: `/logs/openai_response_${timestamp}.txt`, // Return the path to the response file
         });
+
     } catch (error) {
-        console.error("Error generating image:", error);
-        return NextResponse.json({ error: "Failed to generate image" }, { status: 500 });
+        console.error("Error in /api/edit-image:", error);
+        return NextResponse.json({ error: "An unexpected error occurred" }, { status: 500 });
     }
 }

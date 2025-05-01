@@ -11,6 +11,11 @@ export default function ImageGenerator() {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Additional parameters
+    const [quality, setQuality] = useState<string>("auto");
+    const [size, setSize] = useState<string>("auto");
+    const [style, setStyle] = useState<string>("vivid");
+
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files) {
@@ -29,6 +34,9 @@ export default function ImageGenerator() {
         });
 
         formData.append("prompt", prompt);
+        formData.append("quality", quality);
+        formData.append("size", size);
+        formData.append("style", style);
 
         try {
             const response = await fetch("/api/edit-image", {
@@ -43,6 +51,7 @@ export default function ImageGenerator() {
             }
 
             setGeneratedImage(data.imagePath);
+            console.log("Complete API Response:", data.response); // Log the full response
         } catch (err: unknown) {
             if (err instanceof Error) {
                 setError(err.message);
@@ -93,6 +102,55 @@ export default function ImageGenerator() {
                             <p className="mt-2 text-gray-600">You can upload up to 4 images.</p>
                         </div>
 
+                        <div className="space-y-2">
+                            <label htmlFor="quality" className="block font-medium text-gray-700 text-lg">
+                                Image Quality
+                            </label>
+                            <select
+                                id="quality"
+                                value={quality}
+                                onChange={(e) => setQuality(e.target.value)}
+                                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-400 w-full"
+                            >
+                                <option value="auto">Auto</option>
+                                <option value="high">High</option>
+                                <option value="medium">Medium</option>
+                                <option value="low">Low</option>
+                            </select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label htmlFor="size" className="block font-medium text-gray-700 text-lg">
+                                Image Size
+                            </label>
+                            <select
+                                id="size"
+                                value={size}
+                                onChange={(e) => setSize(e.target.value)}
+                                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-400 w-full"
+                            >
+                                <option value="auto">Auto</option>
+                                <option value="1024x1024">1024x1024</option>
+                                <option value="1536x1024">1536x1024</option>
+                                <option value="1024x1536">1024x1536</option>
+                            </select>
+                        </div>
+
+                        {/* <div className="space-y-2">
+                            <label htmlFor="style" className="block font-medium text-gray-700 text-lg">
+                                Image Style (For DALL-E 3 only)
+                            </label>
+                            <select
+                                id="style"
+                                value={style}
+                                onChange={(e) => setStyle(e.target.value)}
+                                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-400 w-full"
+                            >
+                                <option value="vivid">Vivid</option>
+                                <option value="natural">Natural</option>
+                            </select>
+                        </div> */}
+
                         <button
                             type="submit"
                             disabled={isLoading || images.length === 0}
@@ -104,45 +162,22 @@ export default function ImageGenerator() {
                             {isLoading ? "Generating..." : "Generate Image"}
                         </button>
                     </form>
+
+                    {error && <p className="mt-4 text-red-500">{error}</p>}
+
+                    {generatedImage && (
+                        <div className="mt-8">
+                            <h2 className="mb-4 font-semibold text-purple-800 text-xl text-center">Generated Image</h2>
+                            <Image
+                                src={generatedImage}
+                                alt="Generated Image"
+                                width={1024}
+                                height={1024}
+                                className="mx-auto rounded-lg"
+                            />
+                        </div>
+                    )}
                 </div>
-
-                {error && (
-                    <div className="bg-red-50 mb-8 p-4 border border-red-200 rounded-lg">
-                        <p className="text-red-600">{error}</p>
-                    </div>
-                )}
-
-                {isLoading && (
-                    <div className="flex flex-col justify-center items-center bg-white shadow-lg p-8 rounded-xl">
-                        <div className="mb-4 border-4 border-purple-200 border-t-purple-600 rounded-full w-12 h-12 animate-spin"></div>
-                        <p className="text-gray-600">Creating your masterpiece...</p>
-                    </div>
-                )}
-
-                {generatedImage && !isLoading && (
-                    <div className="bg-white shadow-lg p-6 rounded-xl">
-                        <h2 className="mb-4 font-semibold text-gray-800 text-xl">Generated Image</h2>
-                        <div className="relative shadow-md border border-gray-200 rounded-lg overflow-hidden">
-                            <div className="relative w-full h-[400px] aspect-h-1 aspect-w-1">
-                                <Image
-                                    src={generatedImage}
-                                    alt="Generated image"
-                                    fill
-                                    className="object-contain"
-                                />
-                            </div>
-                        </div>
-                        <div className="flex justify-end mt-4">
-                            <a
-                                href={generatedImage}
-                                download
-                                className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg font-medium text-gray-800 transition-colors"
-                            >
-                                Download Image
-                            </a>
-                        </div>
-                    </div>
-                )}
             </div>
         </main>
     );
