@@ -3,14 +3,15 @@
 import { useState } from "react";
 import Image from "next/image";
 
-// Typing for the component
 export default function ImageGenerator() {
   const [prompt, setPrompt] = useState<string>("");
+  const [size, setSize] = useState<string>("auto");
+  const [quality, setQuality] = useState<string>("auto");
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => { // Explicitly typing 'e'
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
@@ -21,7 +22,7 @@ export default function ImageGenerator() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, size, quality }),
       });
 
       const data = await response.json();
@@ -31,9 +32,9 @@ export default function ImageGenerator() {
       }
 
       setGeneratedImage(data.imagePath);
-    } catch (err: unknown) { // Explicitly typing 'err'
+    } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message); // Safely accessing message
+        setError(err.message);
       } else {
         setError("An unknown error occurred");
       }
@@ -44,16 +45,16 @@ export default function ImageGenerator() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-blue-50 to-purple-50 p-4 md:p-8 lg:p-16">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl md:text-4xl font-bold text-center text-purple-800 mb-6">
+    <main className="bg-gradient-to-b from-blue-50 to-purple-50 p-4 md:p-8 lg:p-16 min-h-screen">
+      <div className="mx-auto max-w-4xl">
+        <h1 className="mb-6 font-bold text-purple-800 text-3xl md:text-4xl text-center">
           AI Image Generator
         </h1>
 
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <div className="bg-white shadow-lg mb-8 p-6 rounded-xl">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="prompt" className="block text-lg font-medium text-gray-700">
+              <label htmlFor="prompt" className="block font-medium text-gray-700 text-lg">
                 Describe your image
               </label>
               <textarea
@@ -61,9 +62,45 @@ export default function ImageGenerator() {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="A children's book drawing of a veterinarian using a stethoscope to listen to the heartbeat of a baby otter."
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-transparent min-h-[120px] text-gray-800"
+                className="px-4 py-3 border border-gray-300 focus:border-transparent rounded-lg focus:ring-2 focus:ring-purple-400 w-full min-h-[120px] text-gray-800"
                 required
               />
+            </div>
+
+            {/* Size Selector */}
+            <div className="space-y-2">
+              <label htmlFor="size" className="block font-medium text-gray-700 text-lg">
+                Select Image Size
+              </label>
+              <select
+                id="size"
+                value={size}
+                onChange={(e) => setSize(e.target.value)}
+                className="px-4 py-3 border border-gray-300 focus:border-transparent rounded-lg focus:ring-2 focus:ring-purple-400 w-full text-gray-800"
+              >
+                <option value="auto">Auto</option>
+                <option value="1024x1024">1024x1024 (Square)</option>
+                <option value="1536x1024">1536x1024 (Landscape)</option>
+                <option value="1024x1536">1024x1536 (Portrait)</option>
+              </select>
+            </div>
+
+            {/* Quality Selector */}
+            <div className="space-y-2">
+              <label htmlFor="quality" className="block font-medium text-gray-700 text-lg">
+                Select Image Quality
+              </label>
+              <select
+                id="quality"
+                value={quality}
+                onChange={(e) => setQuality(e.target.value)}
+                className="px-4 py-3 border border-gray-300 focus:border-transparent rounded-lg focus:ring-2 focus:ring-purple-400 w-full text-gray-800"
+              >
+                <option value="auto">Auto</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
             </div>
 
             <button
@@ -80,23 +117,23 @@ export default function ImageGenerator() {
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
+          <div className="bg-red-50 mb-8 p-4 border border-red-200 rounded-lg">
             <p className="text-red-600">{error}</p>
           </div>
         )}
 
         {isLoading && (
-          <div className="flex flex-col items-center justify-center p-8 bg-white rounded-xl shadow-lg">
-            <div className="w-12 h-12 rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin mb-4"></div>
+          <div className="flex flex-col justify-center items-center bg-white shadow-lg p-8 rounded-xl">
+            <div className="mb-4 border-4 border-purple-200 border-t-purple-600 rounded-full w-12 h-12 animate-spin"></div>
             <p className="text-gray-600">Creating your masterpiece...</p>
           </div>
         )}
 
         {generatedImage && !isLoading && (
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Generated Image</h2>
-            <div className="relative rounded-lg overflow-hidden border border-gray-200 shadow-md">
-              <div className="aspect-w-1 aspect-h-1 relative w-full h-[400px]">
+          <div className="bg-white shadow-lg p-6 rounded-xl">
+            <h2 className="mb-4 font-semibold text-gray-800 text-xl">Generated Image</h2>
+            <div className="relative shadow-md border border-gray-200 rounded-lg overflow-hidden">
+              <div className="relative w-full h-[400px] aspect-h-1 aspect-w-1">
                 <Image
                   src={generatedImage}
                   alt="Generated image"
@@ -105,11 +142,11 @@ export default function ImageGenerator() {
                 />
               </div>
             </div>
-            <div className="mt-4 flex justify-end">
+            <div className="flex justify-end mt-4">
               <a
                 href={generatedImage}
                 download
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition-colors"
+                className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg font-medium text-gray-800 transition-colors"
               >
                 Download Image
               </a>

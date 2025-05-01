@@ -9,9 +9,9 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function POST(request: NextRequest) { // Explicitly typing 'request'
+export async function POST(request: NextRequest) {
     try {
-        const { prompt } = await request.json();
+        const { prompt, size, quality } = await request.json();
 
         if (!prompt) {
             return NextResponse.json(
@@ -20,13 +20,33 @@ export async function POST(request: NextRequest) { // Explicitly typing 'request
             );
         }
 
-        // Generate the image
+        // Define valid options for size and quality
+        const validSizes = ["auto", "1024x1024", "1536x1024", "1024x1536"];
+        const validQualities = ["auto", "low", "medium", "high"];
+
+        // Validate size and quality
+        if (!validSizes.includes(size)) {
+            return NextResponse.json(
+                { error: `Invalid size value. Valid values are: ${validSizes.join(", ")}` },
+                { status: 400 }
+            );
+        }
+
+        if (!validQualities.includes(quality)) {
+            return NextResponse.json(
+                { error: `Invalid quality value. Valid values are: ${validQualities.join(", ")}` },
+                { status: 400 }
+            );
+        }
+
+        // Generate the image with the selected size and quality
         const result = await openai.images.generate({
-            model: "gpt-image-1", // Use the appropriate model
-            prompt,               // Include the prompt as per OpenAI documentation
+            model: "gpt-image-1",
+            prompt,
+            size,
+            quality
         });
 
-        // Check if result.data is defined and has the expected structure
         if (!result.data || result.data.length === 0) {
             return NextResponse.json(
                 { error: "Failed to generate image data" },
@@ -34,7 +54,6 @@ export async function POST(request: NextRequest) { // Explicitly typing 'request
             );
         }
 
-        // Get the base64 data from the result (assuming the result contains base64)
         const image_base64 = result.data[0]?.b64_json;
 
         if (!image_base64) {
@@ -44,21 +63,17 @@ export async function POST(request: NextRequest) { // Explicitly typing 'request
             );
         }
 
-        // Generate a unique filename
         const filename = `${uuidv4()}.png`;
 
-        // Ensure the public/images directory exists
         const imageDir = path.join(process.cwd(), "public/images");
         if (!fs.existsSync(imageDir)) {
             fs.mkdirSync(imageDir, { recursive: true });
         }
 
-        // Save the image to the public directory
         const filePath = path.join(imageDir, filename);
         const image_bytes = Buffer.from(image_base64, "base64");
         fs.writeFileSync(filePath, image_bytes);
 
-        // Return the path to the saved image
         return NextResponse.json({
             success: true,
             imagePath: `/images/${filename}`,
