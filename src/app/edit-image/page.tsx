@@ -71,7 +71,7 @@ export default function ImageGenerator() {
                     AI Image Generator
                 </h1>
 
-                <div className="bg-white shadow-lg mb-8 p-6 rounded-xl">
+                <div className="bg-white shadow-lg mb-8 p-6 rounded-xl text-black">
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="space-y-2">
                             <label htmlFor="prompt" className="block font-medium text-gray-700 text-lg">
@@ -99,7 +99,7 @@ export default function ImageGenerator() {
                                 onChange={handleImageChange}
                                 className="px-4 py-3 border border-gray-300 focus:border-transparent rounded-lg focus:ring-2 focus:ring-purple-400 w-full"
                             />
-                            <p className="mt-2 text-gray-600">You can upload up to 4 images.</p>
+                            <p className="mt-2 text-black-600">You can upload up to 4 images.</p>
                         </div>
 
                         <div className="space-y-2">
@@ -110,9 +110,9 @@ export default function ImageGenerator() {
                                 id="quality"
                                 value={quality}
                                 onChange={(e) => setQuality(e.target.value)}
-                                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-400 w-full"
+                                className="px-4 py-3 border border-gray-300 focus:ring-2 focus:ring-purple-400 w-full text-blackrounded-lg"
                             >
-                                <option value="auto">Auto</option>
+                                <option value=" text-black auto">Auto</option>
                                 <option value="high">High</option>
                                 <option value="medium">Medium</option>
                                 <option value="low">Low</option>
